@@ -19,28 +19,58 @@
 
     // --- Editor UI ---
     const editorHTML = `
-        <div id="ai-editor-bar" class="fixed top-0 left-0 right-0 bg-stone-900 text-white p-3 shadow-lg z-[100] flex items-start gap-3 text-sm transition-transform duration-300 -translate-y-full">
-            <div class="flex-shrink-0 font-bold text-brandTeal-400 flex items-center gap-2 pt-2.5">
-                <i class="fa-solid fa-robot"></i>
-                <span>AI Editor</span>
+        <div id="ai-editor-bar" class="fixed top-0 left-0 right-0 bg-stone-900 text-white p-3 shadow-lg z-[100] flex items-start gap-4 text-sm transition-transform duration-300 -translate-y-full">
+            
+            <!-- Editor Mode Toggle -->
+            <div class="flex-shrink-0 text-center pt-1.5 space-y-1">
+                <div class="font-bold text-brandTeal-400 flex items-center gap-2">
+                    <i class="fa-solid fa-robot"></i>
+                    <span>Editor</span>
+                </div>
+                <div class="flex items-center justify-center space-x-2">
+                    <span id="ai-mode-label" class="font-semibold text-xs text-white">AI</span>
+                    <label for="mode-toggle" class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" value="" id="mode-toggle" class="sr-only peer">
+                        <div class="w-9 h-5 bg-stone-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-600 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brandGreen-600"></div>
+                    </label>
+                    <span id="text-mode-label" class="font-semibold text-xs text-stone-400">Text</span>
+                </div>
             </div>
-            <textarea id="ai-editor-prompt" rows="3" class="flex-grow bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-white placeholder-stone-500 focus:outline-none focus:ring-1 focus:ring-brandGreen-500 resize-y" placeholder="Enter your edit request... (Cmd/Ctrl + Enter to submit)"></textarea>
-            <div class="flex flex-col gap-2 flex-shrink-0">
-                <button id="ai-editor-generate" class="bg-brandGreen-700 hover:bg-brandGreen-600 text-white font-semibold px-4 py-2.5 rounded-md text-sm flex items-center justify-center gap-2 w-full">
-                    <span id="ai-editor-btn-text">Generate</span>
-                    <i id="ai-editor-spinner" class="fa-solid fa-spinner fa-spin hidden"></i>
-                </button>
-                <div class="flex items-center gap-2">
-                    <button id="ai-editor-history" class="flex-1 text-stone-400 hover:text-white font-semibold px-3 py-1.5 rounded-md text-xs flex items-center justify-center gap-2 border border-stone-700 hover:bg-stone-800">
-                        <i class="fa-solid fa-history"></i>
-                        <span>History</span>
+
+            <!-- AI Controls -->
+            <div id="ai-editor-controls" class="flex-grow flex items-start gap-3">
+                <textarea id="ai-editor-prompt" rows="3" class="flex-grow bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-white placeholder-stone-500 focus:outline-none focus:ring-1 focus:ring-brandGreen-500 resize-y" placeholder="Enter your edit request... (Cmd/Ctrl + Enter to submit)"></textarea>
+                <div class="flex flex-col gap-2 flex-shrink-0">
+                    <button id="ai-editor-generate" class="bg-brandGreen-700 hover:bg-brandGreen-600 text-white font-semibold px-4 py-2.5 rounded-md text-sm flex items-center justify-center gap-2 w-full">
+                        <span id="ai-editor-btn-text">Generate</span>
+                        <i id="ai-editor-spinner" class="fa-solid fa-spinner fa-spin hidden"></i>
                     </button>
-                    <button id="ai-editor-scope" class="flex-1 text-stone-400 hover:text-white font-semibold px-3 py-1.5 rounded-md text-xs flex items-center justify-center gap-2 border border-stone-700 hover:bg-stone-800">
-                        <i class="fa-solid fa-crosshairs"></i>
-                        <span>Scope</span>
+                    <div class="flex items-center gap-2">
+                        <button id="ai-editor-history" class="flex-1 text-stone-400 hover:text-white font-semibold px-3 py-1.5 rounded-md text-xs flex items-center justify-center gap-2 border border-stone-700 hover:bg-stone-800">
+                            <i class="fa-solid fa-history"></i>
+                            <span>History</span>
+                        </button>
+                        <button id="ai-editor-scope" class="flex-1 text-stone-400 hover:text-white font-semibold px-3 py-1.5 rounded-md text-xs flex items-center justify-center gap-2 border border-stone-700 hover:bg-stone-800">
+                            <i class="fa-solid fa-crosshairs"></i>
+                            <span>Scope</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text Editor Controls -->
+            <div id="text-editor-controls" class="hidden flex-grow items-start gap-3">
+                <textarea id="text-editor-comment" rows="3" class="flex-grow bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-sm text-white placeholder-stone-500 focus:outline-none focus:ring-1 focus:ring-brandGreen-500 resize-y" placeholder="Add a comment about your changes (optional)..."></textarea>
+                <div class="flex flex-col gap-2 flex-shrink-0">
+                    <button id="save-text-btn" class="bg-brandGreen-700 hover:bg-brandGreen-600 text-white font-semibold px-4 py-2.5 rounded-md text-sm flex items-center justify-center gap-2 w-full">
+                        <i class="fa-solid fa-save mr-1"></i> Save Changes
+                    </button>
+                    <button id="cancel-text-btn" class="bg-stone-700 hover:bg-stone-600 text-stone-300 font-semibold px-4 py-2.5 rounded-md text-sm w-full">
+                        Cancel
                     </button>
                 </div>
             </div>
+
             <button id="ai-editor-close" class="text-stone-500 hover:text-white pt-2" title="Close Editor">
                 <i class="fa-solid fa-times"></i>
             </button>
@@ -87,6 +117,128 @@
     `;
 
     // --- Functions ---
+
+    /**
+     * Resets dynamically generated content on the page.
+     * This is called when entering Text mode to ensure the original static HTML is edited.
+     * It finds all elements with the 'generated-content' class and clears them.
+     */
+    function resetGeneratedContent() {
+        const elementsToReset = document.querySelectorAll('.generated-content');
+        elementsToReset.forEach(el => {
+            el.innerHTML = '<!-- Dynamically generated content reset for editing -->';
+        });
+    }
+
+    /**
+     * Toggles the editor between AI and Text modes.
+     */
+    function setEditorMode() {
+        const mainEl = document.querySelector('main');
+        if (!mainEl) {
+            console.error('Could not find <main> tag in the page to edit.');
+            return;
+        }
+
+        const modeToggle = document.getElementById('mode-toggle');
+        const aiModeLabel = document.getElementById('ai-mode-label');
+        const textModeLabel = document.getElementById('text-mode-label');
+        const aiEditorControls = document.getElementById('ai-editor-controls');
+        const textEditorControls = document.getElementById('text-editor-controls');
+
+        const isTextMode = modeToggle.checked;
+
+        if (isTextMode) {
+            // --- Enable Text Editor Mode ---
+            if (aiEditorControls) aiEditorControls.style.display = 'none';
+            if (textEditorControls) textEditorControls.style.display = 'flex';
+            
+            aiModeLabel.classList.remove('text-white');
+            aiModeLabel.classList.add('text-stone-400');
+            textModeLabel.classList.add('text-white');
+            textModeLabel.classList.remove('text-stone-400');
+
+            // Reset dynamically generated content before making the main tag editable.
+            resetGeneratedContent();
+
+            mainEl.contentEditable = 'true';
+            mainEl.style.outline = '2px dashed #8ac43f'; // brandGreen-400
+            mainEl.style.minHeight = '300px';
+            mainEl.focus();
+        } else {
+            // --- Disable Text Editor Mode (Return to AI/View) ---
+            if (aiEditorControls) aiEditorControls.style.display = 'flex';
+            if (textEditorControls) textEditorControls.style.display = 'none';
+
+            aiModeLabel.classList.add('text-white');
+            aiModeLabel.classList.remove('text-stone-400');
+            textModeLabel.classList.remove('text-white');
+            textModeLabel.classList.add('text-stone-400');
+
+            mainEl.contentEditable = 'false';
+            mainEl.style.outline = 'none';
+        }
+    }
+
+    /**
+     * Saves the edited innerHTML of the <main> tag.
+     */
+    async function saveTextChanges() {
+        const mainEl = document.querySelector('main');
+        const currentFile = getCurrentFilePath();
+        const commentInput = document.getElementById('text-editor-comment');
+
+        if (!mainEl || !currentFile) {
+            showToast('Text Editor Error', 'No file selected or <main> content not found.', false);
+            return;
+        }
+
+        const newMainContent = mainEl.innerHTML;
+        const comment = commentInput ? commentInput.value.trim() : '';
+        
+        if (!confirm('Are you sure you want to save these changes? This will overwrite the main content of the page.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('webrobot.php?action=save_text_edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    file: currentFile,
+                    content: newMainContent,
+                    comment: comment,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'An unknown error occurred on the server.');
+            }
+
+            showToast('Text Editor', result.message, true);
+            // Exit edit mode and reload the page to show the saved state
+            document.getElementById('mode-toggle').checked = false;
+            setEditorMode();
+            setTimeout(() => window.location.reload(), 1500);
+
+        } catch (error) {
+            console.error('Error saving text edit:', error);
+            showToast('Text Editor Error', 'Failed to save changes: ' + error.message, false);
+        }
+    }
+    
+    /**
+     * Cancels the text edit and reloads the page.
+     */
+    function cancelTextChanges() {
+        if (confirm('Are you sure you want to cancel? All changes will be lost.')) {
+            document.getElementById('mode-toggle').checked = false;
+            setEditorMode();
+            window.location.reload(); // Reload to discard changes
+        }
+    }
 
     function toggleEditorBar() {
         const bar = document.getElementById('ai-editor-bar');
@@ -349,6 +501,11 @@
                 handleGenerate();
             }
         });
+
+        // --- New Listeners for Text Editor Mode ---
+        document.getElementById('mode-toggle')?.addEventListener('change', setEditorMode);
+        document.getElementById('save-text-btn')?.addEventListener('click', saveTextChanges);
+        document.getElementById('cancel-text-btn')?.addEventListener('click', cancelTextChanges);
 
         // History/Rollback listeners
         document.getElementById('ai-editor-history')?.addEventListener('click', showHistoryModal);

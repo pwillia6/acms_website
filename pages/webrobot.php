@@ -263,6 +263,49 @@ This block contains the data associated with the page. If my request involves ch
 }
 
 /**
+ * Handles saving content from the simple text editor mode.
+ */
+class TextEditor {
+    /** @var WebRobotUpdater An instance of the updater class to access helper methods. */
+    private $updater;
+
+    /**
+     * TextEditor constructor.
+     * @param WebRobotUpdater $updater An instance of WebRobotUpdater to access its file-saving and validation methods.
+     */
+    public function __construct(WebRobotUpdater $updater) {
+        $this->updater = $updater;
+    }
+
+    /**
+     * Saves the content of the <main> tag for a given file.
+     * It reads the original file, replaces the content of the <main> tag,
+     * and then uses the WebRobotUpdater's save method to handle backups and file writing.
+     *
+     * @param string $filePath The relative path of the file to save.
+     * @param string $newMainContent The new HTML content for the <main> tag.
+     * @param string $comment An optional comment to save with the backup.
+     * @throws Exception If the <main> tag cannot be found in the file.
+     */
+    public function save($filePath, $newMainContent, $comment = '') {
+        $fullPath = $this->updater->validate_path($filePath);
+        $originalContent = file_get_contents($fullPath);
+
+        // Replace the content of the main tag. The 's' flag allows '.' to match newlines.
+        $newFullContent = preg_replace('/(<main[^>]*>)(.*?)(<\/main>)/s', '$1' . $newMainContent . '$3', $originalContent, 1, $count);
+
+        if ($count === 0) {
+            throw new Exception("Could not find <main> tag in the file to update.");
+        }
+
+        $prompt = !empty(trim($comment)) ? $comment : '[Text Editor Update]';
+
+        // Use the existing save method to handle backups and writing the file.
+        $this->updater->save_file_content($filePath, $newFullContent, $prompt);
+    }
+}
+
+/**
  * Manages file system operations for the web robot, including updates, backups, and rollbacks.
  * It serves as the main controller for handling user actions related to file content.
  */
@@ -350,11 +393,12 @@ class WebRobotUpdater {
             return array();
         }
 
-        // Prepare the "current" content with its data block for comparison.
-        $currentContentForComparison = null;
+        // Prepare both clean and hydrated versions of the current content for comparison.
+        $currentContentClean = null;
+        $currentContentHydrated = null;
         if (file_exists($fullPath)) {
             $currentContentClean = file_get_contents($fullPath);
-            $currentContentForComparison = $currentContentClean; // Start with the clean content
+            $currentContentHydrated = $currentContentClean; // Start with the clean content
             $dataSourcePath = $this->get_data_source_from_content($currentContentClean);
             if ($dataSourcePath) {
                 try {
@@ -362,10 +406,12 @@ class WebRobotUpdater {
                     if (is_file($fullDataSourcePath)) {
                         $dataSourceContent = file_get_contents($fullDataSourcePath);
                         $dataFileComment = "\n<!-- START DATA FILE: " . $dataSourcePath . "\n" . $dataSourceContent . "\nEND DATA FILE: " . $dataSourcePath . " -->";
-                        $currentContentForComparison .= $dataFileComment;
+                        $currentContentHydrated .= $dataFileComment;
                     }
                 } catch (Exception $e) {
                     error_log("Could not create current content for comparison in list_backups: " . $e->getMessage());
+                    // If hydration fails, fall back to clean content for hydrated comparison as well.
+                    $currentContentHydrated = $currentContentClean;
                 }
             }
         }
@@ -388,9 +434,22 @@ class WebRobotUpdater {
                     $prompt = file_get_contents($promptFile);
                 }
 
-                // Compare the full backup content with the hydrated current content.
+                // Compare the backup content with the appropriate version of the current file.
                 $backupContent = file_get_contents($backupFile);
-                $isCurrent = ($currentContentForComparison !== null && trim($backupContent) === trim($currentContentForComparison));
+                $backupHasDataBlock = ($this->extract_data_block($backupContent) !== null);
+
+                $isCurrent = false;
+                if ($backupHasDataBlock) {
+                    // Backup has a data block, so compare it against the hydrated version of the current file.
+                    if ($currentContentHydrated !== null) {
+                        $isCurrent = (trim($backupContent) === trim($currentContentHydrated));
+                    }
+                } else {
+                    // Backup does NOT have a data block, compare it against the clean version of the current file.
+                    if ($currentContentClean !== null) {
+                        $isCurrent = (trim($backupContent) === trim($currentContentClean));
+                    }
+                }
 
                 $backups[] = array(
                     'file' => str_replace(DOC_ROOT . DIRECTORY_SEPARATOR, '', $backupFile),
@@ -521,7 +580,7 @@ class WebRobotUpdater {
      * @param string|null $prompt The prompt that generated this content, to be saved alongside the backup.
      * @throws Exception On file system errors (e.g., failed to write).
      */
-    private function save_file_content($filePath, $content, $prompt = null) {
+    public function save_file_content($filePath, $content, $prompt = null) {
         $fullPath = $this->validate_path($filePath);
         
         $isNewFile = !is_file($fullPath);
@@ -623,6 +682,17 @@ try {
             $result = $updater->generateAndSave($prompt, $target_files, $update_all_html);
             $response['message'] = $result['message'];
             $response['usage'] = $result['usage'];
+            break;
+        case 'save_text_edit':
+            $data = json_decode(file_get_contents('php://input'), true);
+            $filePath = isset($data['file']) ? $data['file'] : '';
+            $newMainContent = isset($data['content']) ? $data['content'] : '';
+            $comment = isset($data['comment']) ? $data['comment'] : '';
+
+            $textEditor = new TextEditor($updater);
+            $textEditor->save($filePath, $newMainContent, $comment);
+
+            $response['message'] = 'File updated successfully via Text Editor.';
             break;
         case 'list_backups':
             $data = json_decode(file_get_contents('php://input'), true);
