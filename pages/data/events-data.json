@@ -4,7 +4,6 @@
         "region": "sydney",
         "date": "24-25 January",
         "title": "Wollongong Double Playing Day",
-        "venue": "Wollongong Conservatorium",
         "status": "Completed",
         "registration_closes": "5 Jan"
     },
@@ -75,6 +74,7 @@
         "region": "canberra",
         "date": "22 August 2026",
         "title": "Canberra Playing Day",
+        "venue": "ANU School of Music",
         "registration_closes": "12 August 2026",
         "coordinator": "Suzanne Powell & Caroline Slaytor"
     },

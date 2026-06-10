@@ -239,9 +239,7 @@
             }
 
             showToast('Text Editor', result.message, true);
-            // Exit edit mode and reload the page to show the saved state
-            document.getElementById('mode-toggle').checked = false;
-            setEditorMode();
+            // Reload the page to show the saved state
             setTimeout(() => window.location.reload(), 1500);
 
         } catch (error) {
@@ -260,11 +258,22 @@
     }
 
     /**
+     * Generates a page-specific cookie name for the interaction ID.
+     * @returns {string} The cookie name.
+     */
+    function getInteractionCookieName() {
+        const path = getCurrentFilePath();
+        // Sanitize the path to create a valid cookie name.
+        const safePath = path.replace(/\//g, '_').replace(/\./g, '-');
+        return 'gemini_interaction_id_' + safePath;
+    }
+
+    /**
      * Clears the conversation history by deleting the interaction ID cookie.
      */
     function handleNewChat() {
         if (confirm('Are you sure you want to start a new conversation? This will clear the AI\'s memory of previous requests.')) {
-            setSessionCookie('gemini_interaction_id', '', -1); // Expire cookie
+            setSessionCookie(getInteractionCookieName(), '', -1); // Expire page-specific cookie
             document.getElementById('ai-editor-prompt').value = '';
             showToast('AI Editor', 'New conversation started.', true);
         }
@@ -334,11 +343,10 @@
 
             const isMultiFile = updateAllHtml || filesToUpdate.length > 1;
             let interactionId = null;
+            const cookieName = getInteractionCookieName();
 
-            if (isMultiFile) {
-                setSessionCookie('gemini_interaction_id', '', -1); // Clear cookie for batch jobs
-            } else {
-                interactionId = getCookie('gemini_interaction_id');
+            if (!isMultiFile) {
+                interactionId = getCookie(cookieName);
             }
 
             const payload = {
@@ -357,11 +365,15 @@
             if (!response.ok) throw new Error((await response.json()).error || 'Generate failed.');
             
             const result = await response.json();
-            if (result.interaction_id) {
-                setSessionCookie('gemini_interaction_id', result.interaction_id, 1); // Set for 1 day
-            } else if (!isMultiFile) {
-                // If it was a single file request but no ID came back, clear the cookie.
-                setSessionCookie('gemini_interaction_id', '', -1);
+            
+            // Only manage cookies for single-file, conversational edits.
+            if (!isMultiFile) {
+                if (result.interaction_id) {
+                    setSessionCookie(cookieName, result.interaction_id, 1); // Set for 1 day
+                } else {
+                    // If no ID came back, the conversation is broken or over. Clear the cookie.
+                    setSessionCookie(cookieName, '', -1);
+                }
             }
 
             showToast('AI Editor', result.message || 'Update successful! Reloading...', true);

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="data-source" content="data/concert_archive_data.json">
+    <title>Concert Archives | Amateur Chamber Music Society (ACMS) Australia</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/tailwind-config.js"></script>
+    <!-- Google Fonts: Merriweather for Serif & Inter for Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col antialiased">
+
+    <!-- TOP HEADER: Premium Dark Green-Charcoal Background for Logo & Navigation -->
+    <header class="bg-[#080d0a] text-white border-b border-brandGreen-950 shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <!-- Brand / Logo Area with Rich Dark Background -->
+                <a href="index.html" class="relative cursor-pointer">
+                    <img src="images/logo-notext.png" alt="ACMS Logo" class="h-16 mb-[5px]">
+                    <div class="absolute top-[62%] left-[74%] whitespace-nowrap">
+                        <span class="text-[9px] uppercase tracking-widest text-white font-bold block leading-tight">Amateur Chamber<br>Music Society</span>
+                    </div>
+                </a>
+
+                <!-- Desktop Navigation Menu -->
+                <nav class="hidden lg:flex space-x-1">
+                    <a href="index.html" class="nav-btn px-3 py-2 rounded-md text-sm font-medium transition duration-150 hover:bg-stone-900 hover:text-white" data-tab="home">Home</a>
+                    <a href="about.html" class="nav-btn px-3 py-2 rounded-md text-sm font-medium transition duration-150 hover:bg-stone-900 hover:text-white" data-tab="about">About Us</a>
+                    <a href="playing-days.html" class="nav-btn px-3 py-2 rounded-md text-sm font-medium transition duration-150 hover:bg-stone-900 hover:text-white" data-tab="playing">Playing Days</a>
+                    <a href="music-camp.html" class="nav-btn px-3 py-2 rounded-md text-sm font-medium transition duration-150 hover:bg-stone-900 hover:text-white" data-tab="camp">Music Camp</a>
+                    <a href="concerts.html" class="nav-btn px-3 py-2 rounded-md text-sm font-medium transition duration-150 hover:bg-stone-900 hover:text-white" data-tab="concerts">Concerts</a>
+                    <a href="library.html" class="nav-btn px-3 py-2 rounded-md text-sm font-medium transition duration-150 hover:bg-stone-900 hover:text-white" data-tab="library">Music Library</a>
+                    <a href="https://www8.acms-australia.org/admidio/adm_program/index.php" class="nav-btn px-3 py-2 bg-brandTeal-700 text-white rounded-md text-sm font-semibold tracking-wide shadow transition duration-150 hover:bg-brandTeal-600 hover:shadow-md ml-2">Members Area</a>
+                    <a href="join.html" class="nav-btn px-3 py-2 bg-brandGreen-700 text-white rounded-md text-sm font-semibold tracking-wide shadow transition duration-150 hover:bg-brandGreen-600 hover:shadow-md" data-tab="join">Join / Self-Grader</a>
+                </nav>
+
+                <!-- Mobile Menu Button -->
+                <div class="lg:hidden">
+                    <button id="mobile-menu-toggle" class="text-stone-300 hover:text-white focus:outline-none focus:text-white p-2" aria-label="Toggle Menu">
+                        <i class="fa-solid fa-bars text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Navigation Menu -->
+        <div id="mobile-menu" class="hidden lg:hidden bg-stone-950 border-t border-stone-850 px-4 pt-2 pb-4 space-y-1 shadow-inner">
+            <a href="index.html" class="mobile-nav-btn block w-full text-left px-3 py-2.5 rounded-md text-base font-medium hover:bg-stone-900" data-tab="home">Home</a>
+            <a href="about.html" class="mobile-nav-btn block w-full text-left px-3 py-2.5 rounded-md text-base font-medium hover:bg-stone-900" data-tab="about">About Us & History</a>
+            <a href="playing-days.html" class="mobile-nav-btn block w-full text-left px-3 py-2.5 rounded-md text-base font-medium hover:bg-stone-900" data-tab="playing">Playing Days & Pianists Guide</a>
+            <a href="music-camp.html" class="mobile-nav-btn block w-full text-left px-3 py-2.5 rounded-md text-base font-medium hover:bg-stone-900" data-tab="camp">Residential Camp</a>
+            <a href="concerts.html" class="mobile-nav-btn block w-full text-left px-3 py-2.5 rounded-md text-base font-medium hover:bg-stone-900" data-tab="concerts">Concerts & Performance Advice</a>
+            <a href="library.html" class="mobile-nav-btn block w-full text-left px-3 py-2.5 rounded-md text-base font-medium hover:bg-stone-900" data-tab="library">Music Library Catalog</a>
+            <a href="https://www8.acms-australia.org/admidio/adm_program/index.php" class="mobile-nav-btn block w-full text-left px-3 py-2.5 bg-brandTeal-800 text-white rounded-md text-base font-semibold tracking-wide">Members Area</a>
+            <a href="join.html" class="mobile-nav-btn block w-full text-left px-3 py-2.5 bg-brandGreen-800 text-brandTeal-300 rounded-md text-base font-semibold tracking-wide" data-tab="join">Join Us &amp; Self-Grader</a>
+        </div>
+    </header>
+
+    <!-- MAIN APP CANVAS CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- ==================== CONCERTS TAB ==================== -->
+        <section class="space-y-12">
+            <!-- Navigation Sub-Menu -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-stone-200 pb-4 gap-4">
+                <div>
+                    <h2 class="text-3xl font-serif font-bold text-stone-900">Concerts &amp; Performance Guides</h2>
+                    <p class="text-stone-500 text-sm">Experience chamber performance as a listener or player.</p>
+                </div>
+                <div class="bg-stone-100 rounded-lg p-1 flex flex-wrap space-x-1">
+                    <a href="concerts.html" class="px-4 py-2 text-xs font-semibold rounded-md text-stone-600 hover:bg-white hover:text-stone-800">2026 Planned Programs</a>
+                    <a href="concert-prep-tips.html" class="px-4 py-2 text-xs font-semibold rounded-md text-stone-600 hover:bg-white hover:text-stone-800">Lorraine Moxey's Prep Tips (1992)</a>
+                    <a href="concert-organiser-roles.html" class="px-4 py-2 text-xs font-semibold rounded-md text-stone-600 hover:bg-white hover:text-stone-800">Organiser Roles</a>
+                    <a href="concert-archives.html" class="px-4 py-2 text-xs font-semibold rounded-md bg-white text-stone-800 shadow">Concert Archives</a>
+                </div>
+            </div>
+
+            <!-- SUBCONTENT: ARCHIVES -->
+            <div class="space-y-8">
+                <div class="space-y-4">
+                    <h3 class="text-xl font-serif font-bold text-stone-900">Concert Program Archives</h3>
+                    <p class="text-sm text-stone-600">Browse through the programs from past ACMS concerts. Files are in PDF or DOC format.</p>
+                    <div id="archives-container" class="space-y-8">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- FLOATING POPUP NOTIFICATION (Replacement for Browser Alerts) -->
+    <div id="toast" class="hidden fixed bottom-6 right-6 bg-stone-900 text-white px-5 py-4 rounded-xl shadow-2xl border border-stone-850 max-w-sm z-50 flex items-start space-x-3 transition duration-300">
+        <div class="bg-stone-800 text-brandGreen-400 p-1.5 rounded-lg text-sm" id="toast-icon">
+            <i class="fa-solid fa-bell"></i>
+        </div>
+        <div class="space-y-1">
+            <strong class="text-xs font-serif block text-white" id="toast-title">Notification</strong>
+            <p class="text-stone-300 text-[11px] leading-relaxed" id="toast-body">Message context goes here.</p>
+        </div>
+    </div>
+
+    <!-- PRE-FOOTER MAP ACCENT -->
+    <section class="bg-[#080d0a] text-stone-400 py-12 border-t border-brandGreen-950">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8 text-xs">
+            <div class="space-y-4">
+                <span class="text-brandTeal-300 font-bold uppercase tracking-wider text-[10px]">Contact Us</span>
+                <p>We are always eager to assist with chamber arrangements, library borrowings, or new membership approvals.</p>
+                <div class="space-y-2 text-stone-300">
+                    <p><i class="fa-solid fa-envelope mr-1.5 text-brandGreen-400"></i> <a href="mailto:contact@acms-australia.org" class="hover:underline">contact@acms-australia.org</a></p>
+                </div>
+            </div>
+            <div class="space-y-4">
+                <span class="text-brandTeal-300 font-bold uppercase tracking-wider text-[10px]">National Branches</span>
+                <ul class="space-y-2 text-stone-300">
+                    <li>&bull; Sydney Metropolitan Branch</li>
+                    <li>&bull; Blue Mountains Sub-Branch</li>
+                    <li>&bull; Brisbane playing days (Somerville House)</li>
+                    <li>&bull; Canberra ACT branch (ANU School of Music)</li>
+                </ul>
+            </div>
+            <div class="space-y-4">
+                <span class="text-brandTeal-300 font-bold uppercase tracking-wider text-[10px]">Associated Bodies</span>
+                <p>Looking for musical groupings outside of our core regional hubs? Check our affiliated state societies:</p>
+                <ul class="space-y-2 text-stone-300">
+                    <li>&bull; Adelaide: <a href="http://www.chambermusicsa.org/" target="_blank" class="hover:underline text-brandTeal-400 font-semibold">ACMPSA</a></li>
+                    <li>&bull; Melbourne: <a href="http://vacms.weebly.com/" target="_blank" class="hover:underline text-brandTeal-400 font-semibold">VACMS</a></li>
+                </ul>
+            </div>
+            <div class="space-y-4">
+                <span class="text-brandTeal-300 font-bold uppercase tracking-wider text-[10px]">Digital Channels</span>
+                <p>Join our interactive community forums, stream past concert archives, or watch tutorials on our YouTube network.</p>
+                <div class="flex gap-4 text-stone-300 text-lg">
+                    <a href="https://www.youtube.com/@ACMSMusic" target="_blank" class="hover:text-red-500 transition"><i class="fa-brands fa-youtube"></i></a>
+                    <a href="https://www.facebook.com/pages/Amateur-Chamber-Music-Society/191500364316" target="_blank" class="hover:text-blue-500 transition"><i class="fa-brands fa-facebook-f"></i></a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-black text-stone-500 text-xs py-6 border-t border-stone-900 text-center">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>&copy; 2026 Amateur Chamber Music Society Incorporated (ACMS). All rights reserved.</p>
+            <div class="space-x-4">
+                <a href="https://www.acms-australia.org/download_file/view/496/246" class="hover:underline">ACMS Constitution</a>
+                <span>&bull;</span>
+                <span class="text-stone-600">Built for amateur chamber music development</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== LOGIC / JS CONTROLLERS ==================== -->
+    <script src="js/main.js"></script>
+    <script src="js/editor.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            setActiveTab('concerts');
+ 
+            const dataSourceMeta = document.querySelector('meta[name="data-source"]');
+            const container = document.getElementById('archives-container');
+ 
+            if (!dataSourceMeta || !container) {
+                console.error('Required elements for concert archives page not found.');
+                if (container) {
+                    container.innerHTML = `<p class="p-4 text-center text-red-500">Page is missing required elements for script.</p>`;
+                }
+                return;
+            }
+ 
+            async function fetchJSON(url) {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return await response.json();
+            }
+ 
+            async function renderArchives() {
+                try {
+                    const archives = await fetchJSON(dataSourceMeta.content);
+ 
+                    if (archives.length === 0) {
+                        container.innerHTML = `<p class="text-center text-stone-500">No concert archives found.</p>`;
+                        return;
+                    }
+ 
+                    // Group archives by year
+                    const archivesByYear = archives.reduce((acc, item) => {
+                        const year = new Date(item.date).getFullYear();
+                        if (!acc[year]) {
+                            acc[year] = [];
+                        }
+                        acc[year].push(item);
+                        return acc;
+                    }, {});
+ 
+                    // Get sorted years (descending)
+                    const sortedYears = Object.keys(archivesByYear).sort((a, b) => b - a);
+ 
+                    let htmlContent = '';
+ 
+                    for (const year of sortedYears) {
+                        const yearArchives = archivesByYear[year];
+                        // Sort archives within the year by date descending
+                        yearArchives.sort((a, b) => new Date(b.date) - new Date(a.date));
+ 
+                        const tableRows = yearArchives.map(item => {
+                            const formattedDate = new Date(item.date).toLocaleDateString('en-AU', {
+                                month: 'long',
+                                year: 'numeric'
+                            });
+ 
+                            const fileLinks = item.files.map(file =>
+                                `<a href="${file.url}" class="text-brandGreen-700 hover:underline" target="_blank">${file.label}</a>`
+                            ).join('<br>');
+ 
+                            return `
+                                <tr class="hover:bg-stone-50">
+                                    <td class="p-4 align-top font-semibold text-stone-900 whitespace-nowrap">${formattedDate}</td>
+                                    <td class="p-4 align-top text-xs">${item.summary}</td>
+                                    <td class="p-4 align-top text-xs whitespace-nowrap">${fileLinks}</td>
+                                </tr>
+                            `;
+                        }).join('');
+ 
+                        htmlContent += `
+                            <div class="space-y-4">
+                                <h4 class="text-lg font-serif font-bold text-stone-900 border-b border-stone-200 pb-2">${year}</h4>
+                                <div class="overflow-x-auto bg-white rounded-xl border border-stone-200 shadow-sm">
+                                    <table class="w-full text-left border-collapse text-sm">
+                                        <thead class="bg-stone-50 text-stone-500 text-xs uppercase tracking-wider">
+                                            <tr>
+                                                <th class="p-4 border-b">Date</th>
+                                                <th class="p-4 border-b">Summary</th>
+                                                <th class="p-4 border-b">Downloads</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-stone-150">
+                                            ${tableRows}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    }
+ 
+                    container.innerHTML = htmlContent;
+ 
+                } catch (error) {
+                    console.error('Error loading concert archives:', error);
+                    container.innerHTML = `<p class="p-4 text-center text-red-500">Could not load archive data. ${error.message}</p>`;
+                }
+            }
+ 
+            renderArchives();
+        });
+    </script>
+</body>
+</html>

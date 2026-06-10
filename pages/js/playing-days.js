@@ -44,40 +44,6 @@ function switchRegion(regId) {
 }
 
 /**
- * Renders the pianist repertoire list based on the data array.
- * @param {string} [filterText=''] - Text to filter the repertoire entries.
- */
-function renderPianistRepertoire(filterText = '') {
-    const container = document.getElementById('pianist-repertoire-container');
-    if (!container) return;
-    container.innerHTML = '';
-
-    const lowerFilterText = filterText.toLowerCase();
-    const filtered = pianistRepertoire.filter(p => 
-        p.composer.toLowerCase().includes(lowerFilterText) || 
-        p.era.toLowerCase().includes(lowerFilterText)
-    );
-
-    if (filtered.length === 0) {
-        container.innerHTML = `<p class="text-xs text-stone-400 py-4 col-span-2 text-center">No matching composer/era found.</p>`;
-        return;
-    }
-
-    filtered.forEach(p => {
-        container.innerHTML += `
-            <div class="bg-stone-50 p-4 rounded-xl border border-stone-150 space-y-2 text-xs">
-                <div class="flex justify-between items-center">
-                    <span class="text-brandTeal-600 font-bold tracking-wider uppercase text-[10px]">${p.era}</span>
-                    <span class="font-bold bg-brandGreen-100 text-brandGreen-800 px-2 py-0.5 rounded text-[10px]">${p.difficulty}</span>
-                </div>
-                <h5 class="font-bold text-stone-900 text-sm">${p.composer}</h5>
-                <p class="text-stone-500 leading-relaxed">${p.desc}</p>
-            </div>
-        `;
-    });
-}
-
-/**
  * Renders the Sydney playing day schedule.
  */
 function renderSydneySchedule() {
