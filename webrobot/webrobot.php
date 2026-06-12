@@ -820,9 +820,26 @@ class WebRobotUpdater {
      * @param string $type The type of file ('image' or 'document').
      * @throws Exception If the upload fails or metadata cannot be saved.
      */
-    public function handleUpload($file, $description, $type) {
+    public function handleUpload($file, $description) {
         if ($file['error'] !== UPLOAD_ERR_OK) {
             throw new Exception('File upload error: ' . $file['error']);
+        }
+
+        // Sanitize filename
+        $filename = preg_replace('/[^a-zA-Z0-9-_\.]/', '', basename($file['name']));
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        // Determine file type and validate
+        $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+        $documentExtensions = ['pdf']; // Only PDF is allowed
+
+        $type = null;
+        if (in_array($extension, $imageExtensions)) {
+            $type = 'image';
+        } elseif (in_array($extension, $documentExtensions)) {
+            $type = 'document';
+        } else {
+            throw new Exception("Unsupported file type: .{$extension}. Only images (jpg, png, etc.) and PDF documents are allowed.");
         }
 
         $uploadDir = $this->getUploadsDir();
@@ -832,8 +849,6 @@ class WebRobotUpdater {
 
         // Sanitize filename
         $filename = preg_replace('/[^a-zA-Z0-9-_\.]/', '', basename($file['name']));
-        $targetPath = $uploadDir . '/' . $filename;
-
         if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
             throw new Exception('Failed to move uploaded file.');
         }
@@ -889,6 +904,36 @@ class WebRobotUpdater {
         $metadata[$key] = array_values(array_filter($metadata[$key], fn($item) => $item['filename'] !== $filename));
 
         file_put_contents($metadataPath, json_encode($metadata, JSON_PRETTY_PRINT));
+    }
+
+    /**
+     * Updates the description for an uploaded file in the metadata JSON.
+     * @param string $filename The name of the file to update.
+     * @param string $type The type of file ('image' or 'document').
+     * @param string $newDescription The new description text.
+     * @throws Exception If metadata cannot be read or saved.
+     */
+    public function updateUploadDescription($filename, $type, $newDescription) {
+        $metadataPath = $this->getUploadsMetadataPath();
+        $metadata = $this->listUploads();
+        $key = ($type === 'image') ? 'images' : 'documents';
+
+        $found = false;
+        foreach ($metadata[$key] as &$item) {
+            if ($item['filename'] === $filename) {
+                $item['description'] = $newDescription;
+                $found = true;
+                break;
+            }
+        }
+
+        if (!$found) {
+            throw new Exception("File '{$filename}' not found in metadata.");
+        }
+
+        if (file_put_contents($metadataPath, json_encode($metadata, JSON_PRETTY_PRINT)) === false) {
+            throw new Exception('Failed to write updated metadata file.');
+        }
     }
 
     /**
@@ -1154,10 +1199,10 @@ try {
             $response['uploads'] = $updater->listUploads();
             break;
         case 'handle_upload':
-            if (!isset($_FILES['file']) || !isset($_POST['description']) || !isset($_POST['type'])) {
+            if (!isset($_FILES['file']) || !isset($_POST['description'])) {
                 throw new Exception('Missing upload parameters.');
             }
-            $updater->handleUpload($_FILES['file'], $_POST['description'], $_POST['type']);
+            $updater->handleUpload($_FILES['file'], $_POST['description']);
             $response['message'] = 'File uploaded successfully.';
             break;
         case 'delete_upload':
@@ -1167,6 +1212,14 @@ try {
             }
             $updater->deleteUpload($data['filename'], $data['type']);
             $response['message'] = 'File deleted successfully.';
+            break;
+        case 'update_upload_description':
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!isset($data['filename']) || !isset($data['type']) || !isset($data['description'])) {
+                throw new Exception('Missing parameters for description update.');
+            }
+            $updater->updateUploadDescription($data['filename'], $data['type'], $data['description']);
+            $response['message'] = 'Description updated successfully.';
             break;
         case 'save_text_edit':
             $data = json_decode(file_get_contents('php://input'), true);

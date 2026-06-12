@@ -146,10 +146,6 @@
                         </div>
                         <div id="upload-preview-container" class="mt-3 space-y-2"></div>
                         <textarea id="upload-description" rows="2" class="w-full bg-stone-900 border border-stone-700 rounded-lg px-3 py-2 text-sm text-white placeholder-stone-500 focus:outline-none focus:ring-1 focus:ring-brandGreen-500 mt-3" placeholder="File description..."></textarea>
-                        <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
-                             <label class="flex items-center gap-2 p-2 rounded-md bg-stone-900/50"><input type="radio" name="upload-type" value="image" class="form-radio text-brandGreen-600" checked> Image</label>
-                             <label class="flex items-center gap-2 p-2 rounded-md bg-stone-900/50"><input type="radio" name="upload-type" value="document" class="form-radio text-brandGreen-600"> Document</label>
-                        </div>
                         <button id="upload-submit-btn" class="mt-3 w-full bg-brandGreen-700 hover:bg-brandGreen-600 text-white font-semibold px-4 py-2 rounded-md text-sm flex items-center justify-center gap-2">
                             <span id="upload-btn-text">Upload</span>
                             <i id="upload-spinner" class="fa-solid fa-spinner fa-spin hidden"></i>
@@ -614,25 +610,42 @@
             const { uploads } = await response.json();
 
             const renderList = (items, type) => {
-                if (!items || items.length === 0) {
-                    return '<div class="p-2 text-stone-500 text-xs">No files uploaded.</div>';
-                }
-                return items.map(item => `
-                    <div class="bg-stone-900/75 p-2 rounded-md flex items-center justify-between text-xs">
-                        <div>
-                            <div class="font-semibold text-stone-200">${item.filename}</div>
-                            <div class="text-stone-400">${item.description}</div>
-                        </div>
-                        <button class="delete-upload-btn text-red-500 hover:text-red-400 px-2 py-1" data-filename="${item.filename}" data-type="${type}">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </div>
-                `).join('');
+                 if (!items || items.length === 0) {
+                     return '<div class="p-2 text-stone-500 text-xs">No files uploaded.</div>';
+                 }
+                 return items.map(item => {
+                    const thumbnail = type === 'image'
+                        ? `<div class="relative group flex-shrink-0 mr-3">
+                               <img src="/${item.path}" alt="Preview" class="absolute bottom-0 left-12 w-[200px] h-auto bg-stone-900 border border-stone-600 rounded-lg shadow-lg p-1 hidden group-hover:block z-10">
+                           </div>`
+                        : `<div class="w-10 h-10 flex items-center justify-center bg-stone-700 rounded-md mr-3 flex-shrink-0"><i class="fa-solid fa-file-lines text-stone-400"></i></div>`;
+ 
+                     return `
+                     <div class="bg-stone-900/75 p-2 rounded-md flex items-start justify-between text-xs" data-filename="${item.filename}" data-type="${type}">
+                         <div class="flex items-start flex-grow">
+                             ${thumbnail}
+                             <div class="flex-grow">
+                                 <div class="font-semibold text-stone-200">${item.filename}</div>
+                                 <div class="description-view text-stone-400">${item.description}</div>
+                                 <div class="description-edit hidden">
+                                     <input type="text" value="${item.description}" class="w-full bg-stone-800 border border-stone-600 rounded px-2 py-1 text-xs text-white focus:outline-none focus:ring-1 focus:ring-brandGreen-500">
+                                     <div class="mt-1.5 space-x-2">
+                                         <button class="save-desc-btn text-brandGreen-400 hover:underline">Save</button>
+                                         <button class="cancel-desc-btn text-stone-400 hover:underline">Cancel</button>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                         <div class="flex-shrink-0 ml-2 space-x-1">
+                            <button class="edit-desc-btn text-stone-400 hover:text-white px-2 py-1"><i class="fa-solid fa-pencil"></i></button>
+                            <button class="delete-upload-btn text-red-500 hover:text-red-400 px-2 py-1"><i class="fa-solid fa-trash-can"></i></button>
+                         </div>
+                     </div>
+                 `}).join('');
             };
-
+ 
             imageList.innerHTML = renderList(uploads.images, 'image');
             docList.innerHTML = renderList(uploads.documents, 'document');
-
         } catch (error) {
             imageList.innerHTML = `<div class="p-2 text-red-400">${error.message}</div>`;
             docList.innerHTML = `<div class="p-2 text-red-400">${error.message}</div>`;
@@ -660,7 +673,6 @@
         const previewContainer = document.getElementById('upload-preview-container');
         const file = previewContainer.file;
         const description = document.getElementById('upload-description').value.trim();
-        const type = document.querySelector('input[name="upload-type"]:checked').value;
         const submitBtn = document.getElementById('upload-submit-btn');
         const btnText = document.getElementById('upload-btn-text');
         const spinner = document.getElementById('upload-spinner');
@@ -681,7 +693,6 @@
         const formData = new FormData();
         formData.append('file', file);
         formData.append('description', description);
-        formData.append('type', type);
 
         try {
             const response = await fetch('/webrobot.php?action=handle_upload', {
@@ -736,6 +747,73 @@
 
         } catch (error) {
             showToast('Delete Error', error.message, false);
+        }
+    }
+
+    async function handleDescriptionEdit(e) {
+        const editBtn = e.target.closest('.edit-desc-btn');
+        const cancelBtn = e.target.closest('.cancel-desc-btn');
+        const saveBtn = e.target.closest('.save-desc-btn');
+
+        if (!editBtn && !cancelBtn && !saveBtn) return;
+        e.preventDefault();
+
+        const itemElement = e.target.closest('[data-filename]');
+        if (!itemElement) return;
+
+        const viewMode = itemElement.querySelector('.description-view');
+        const editMode = itemElement.querySelector('.description-edit');
+        const editBtnEl = itemElement.querySelector('.edit-desc-btn');
+
+        if (editBtn) {
+            viewMode.classList.add('hidden');
+            editMode.classList.remove('hidden');
+            editBtnEl.classList.add('hidden');
+            editMode.querySelector('input').focus();
+        }
+
+        if (cancelBtn) {
+            viewMode.classList.remove('hidden');
+            editMode.classList.add('hidden');
+            editBtnEl.classList.remove('hidden');
+            // Reset input to original value
+            editMode.querySelector('input').value = viewMode.textContent;
+        }
+
+        if (saveBtn) {
+            const { filename, type } = itemElement.dataset;
+            const newDescription = editMode.querySelector('input').value.trim();
+
+            if (!newDescription) {
+                showToast('Error', 'Description cannot be empty.', false);
+                return;
+            }
+
+            saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+            saveBtn.disabled = true;
+
+            try {
+                const response = await fetch('/webrobot.php?action=update_upload_description', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename, type, description: newDescription })
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Failed to save.');
+
+                showToast('Success', result.message, true);
+                viewMode.textContent = newDescription; // Update view
+                viewMode.classList.remove('hidden');
+                editMode.classList.add('hidden');
+                editBtnEl.classList.remove('hidden');
+
+            } catch (error) {
+                showToast('Save Error', error.message, false);
+            } finally {
+                saveBtn.innerHTML = 'Save';
+                saveBtn.disabled = false;
+            }
         }
     }
 
@@ -796,7 +874,9 @@
         document.getElementById('ai-editor-uploads-close')?.addEventListener('click', hideUploadsModal);
         document.getElementById('upload-submit-btn')?.addEventListener('click', handleUploadSubmit);
         document.getElementById('uploads-image-list')?.addEventListener('click', handleDeleteUpload);
+        document.getElementById('uploads-image-list')?.addEventListener('click', handleDescriptionEdit);
         document.getElementById('uploads-document-list')?.addEventListener('click', handleDeleteUpload);
+        document.getElementById('uploads-document-list')?.addEventListener('click', handleDescriptionEdit);
 
         // Drag and Drop & Browse Listeners
         const dropzone = document.getElementById('upload-dropzone');
