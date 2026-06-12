@@ -2,6 +2,9 @@
 // --- Start of Merged config.php ---
 // The root directory of the website you want to edit.
 define('DOC_ROOT', __DIR__ . '/../pages');
+// Define to true to simulate a patch command failure for testing purposes.
+// When true, apply_diff will always throw an exception.
+define('SIMULATE_PATCH_FAILURE', false);
 // --- End of Merged config.php ---
 
 
@@ -233,10 +236,11 @@ class GeminiService {
      * @param array $files An array of files, where each element is an associative array with 'path' and 'content'.
      * @param string $userPrompt The user's instruction for what to change.
      * @param string|null $interactionId The ID for continuing a conversation.
+     * @param string $output_format The desired output format ('diff' or 'full_content').
      * @return array An array containing 'modified_files', 'usage' (token metadata), and 'interaction_id'.
      * @throws Exception If the API key is not configured or if the API call fails.
      */
-    public function call_gemini_api(array $files, $userPrompt, $interactionId = null) {
+    public function call_gemini_api(array $files, $userPrompt, $interactionId = null, $output_format = 'diff') {
         if ($this->apiKey === 'YOUR_GEMINI_API_KEY') {
             throw new Exception('Gemini API key is not configured.');
         }
@@ -256,8 +260,14 @@ class GeminiService {
         ];
 
         try {
-            // The system prompt provides the AI with its core instructions and constraints.
-            $system_prompt = "You are an expert web developer. You will receive file contents and a task. Return the modifications as standard Unified Diffs for any changed files. Do not return the full file content.";
+            // The system prompt and schema change based on the desired output format.
+            if ($output_format === 'full_content') {
+                $system_prompt = "You are an expert web developer. You will receive file contents and a task. Return the full content of any modified files. Do not return diffs.";
+                $content_property = 'full_content';
+            } else { // Default to 'diff'
+                $system_prompt = "You are an expert web developer. You will receive file contents and a task. Return the modifications as standard Unified Diffs for any changed files. Do not return the full file content.";
+                $content_property = 'unified_diff';
+            }
 
             $input_parts = [];
             // The files array now contains both primary and data files, prepared by the caller.
@@ -276,9 +286,9 @@ class GeminiService {
                             'type' => 'object',
                             'properties' => [
                                 'filename' => ['type' => 'string'],
-                                'unified_diff' => ['type' => 'string']
+                                $content_property => ['type' => 'string']
                             ],
-                            'required' => ['filename', 'unified_diff']
+                            'required' => ['filename', $content_property]
                         ]
                     ]
                 ],
@@ -745,7 +755,7 @@ class WebRobotUpdater {
         $updated_files_count = 0;
         $files_to_commit = [];
         foreach ($geminiResult['modified_files'] as $file_to_patch) {
-            $this->apply_diff_and_save($file_to_patch['filename'], $file_to_patch['unified_diff']);
+            $this->apply_diff_and_save($file_to_patch['filename'], $file_to_patch['unified_diff'], $geminiResult['interaction_id']);
             $files_to_commit[] = $file_to_patch['filename'];
             $updated_files_count++;
         }
@@ -873,6 +883,10 @@ class WebRobotUpdater {
      * @throws Exception if the `patch` command is not available or fails.
      */
     private function apply_diff($original_content, $diff) {
+        if (SIMULATE_PATCH_FAILURE) {
+            throw new Exception('SIMULATE_PATCH_FAILURE is true: Patch command simulation failed.');
+        }
+
         // Check if `patch` command exists. This is a basic security and functionality check.
         exec('command -v patch', $output, $return_var);
         if ($return_var !== 0) {
@@ -922,18 +936,68 @@ class WebRobotUpdater {
         return $new_content;
     }
 
-    private function apply_diff_and_save($filePath, $diff) {
+    private function apply_diff_and_save($filePath, $diff, $interactionId = null) {
         $fullPath = $this->validate_path($filePath);
         $isNewFile = !is_file($fullPath);
         $original_content = $isNewFile ? "" : file_get_contents($fullPath);
 
-        $newContent = $this->apply_diff($original_content, $diff);
-        
-        if (file_put_contents($fullPath, $newContent) === false) {
-            throw new Exception('Failed to save file: ' . $filePath);
+        try {
+            // Apply the diff to get the new content.
+            $newContent = $this->apply_diff($original_content, $diff);
+
+            // If it's a JSON file, validate its syntax before writing to the actual file.
+            $isJsonFile = (pathinfo($filePath, PATHINFO_EXTENSION) === 'json');
+            if ($isJsonFile) {
+                json_decode($newContent);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    // JSON is invalid. Throw an exception, which will prevent overwriting the original file.
+                    throw new Exception("JSON syntax error detected in {$filePath} after applying diff. Error: " . json_last_error_msg());
+                }
+            }
+
+            // Save the new content to the actual file.
+            if (file_put_contents($fullPath, $newContent) === false) {
+                throw new Exception('Failed to save file after applying diff: ' . $filePath);
+            }
+
+        } catch (Exception $e) {
+            // This catch block handles exceptions from apply_diff, JSON validation, or file_put_contents.
+
+            // If the error is specifically a JSON syntax error, we don't want to fall back to Gemini.
+            // The original file was never overwritten, so we can just re-throw the error.
+            if (strpos($e->getMessage(), "JSON syntax error detected") === 0) {
+                throw $e; // Re-throw the specific JSON error.
+            }
+
+            // For other exceptions (e.g., patch command failure, general file_put_contents failure),
+            // proceed with the Gemini full content fallback.
+            error_log("Applying diff or saving failed for {$filePath}, falling back to full content request. Error: " . $e->getMessage());
+
+            // Fallback: request the full content for the failed file.
+            $fallback_prompt = "The previous diff failed to apply. Please provide the full, updated content for the file: {$filePath}";
+            $file_for_api = [
+                ['path' => $filePath, 'content' => $original_content] // Provide original content for context
+            ];
+            $geminiResult = $this->geminiService->call_gemini_api($file_for_api, $fallback_prompt, $interactionId, 'full_content');
+
+            if (isset($geminiResult['modified_files'][0]['full_content'])) {
+                $newContent = $geminiResult['modified_files'][0]['full_content'];
+                // We should still validate the JSON on the fallback content
+                $isJsonFile = (pathinfo($filePath, PATHINFO_EXTENSION) === 'json');
+                if ($isJsonFile) {
+                    json_decode($newContent);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new Exception("JSON syntax error detected in fallback content for {$filePath}. Error: " . json_last_error_msg());
+                    }
+                }
+                if (file_put_contents($fullPath, $newContent) === false) {
+                    throw new Exception('Failed to save file after fallback to full content: ' . $filePath);
+                }
+            } else {
+                throw new Exception("Fallback to get full content failed for {$filePath}. API response did not contain expected content.");
+            }
         }
     }
-
 }
 
 // Basic security: Restrict to POST requests
