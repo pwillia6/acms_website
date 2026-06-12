@@ -825,18 +825,30 @@ class WebRobotUpdater {
             throw new Exception('File upload error: ' . $file['error']);
         }
 
+        $tmp_path = $file['tmp_name'];
+
         // Sanitize filename
         $filename = preg_replace('/[^a-zA-Z0-9-_\.]/', '', basename($file['name']));
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-        // Determine file type and validate
+        // Determine file type by extension and then validate content
         $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
         $documentExtensions = ['pdf']; // Only PDF is allowed
 
         $type = null;
         if (in_array($extension, $imageExtensions)) {
+            // Verify that it's a real image file
+            if (@getimagesize($tmp_path) === false) {
+                throw new Exception("Uploaded file is not a valid image: {$filename}");
+            }
             $type = 'image';
         } elseif (in_array($extension, $documentExtensions)) {
+            // Verify that it's a real PDF file by checking MIME type
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime = $finfo->file($tmp_path);
+            if ($mime !== 'application/pdf') {
+                throw new Exception("Uploaded file is not a valid PDF: {$filename}");
+            }
             $type = 'document';
         } else {
             throw new Exception("Unsupported file type: .{$extension}. Only images (jpg, png, etc.) and PDF documents are allowed.");
@@ -848,6 +860,7 @@ class WebRobotUpdater {
         }
 
         // Sanitize filename
+        $targetPath = $uploadDir . '/' . $filename;
         $filename = preg_replace('/[^a-zA-Z0-9-_\.]/', '', basename($file['name']));
         if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
             throw new Exception('Failed to move uploaded file.');
