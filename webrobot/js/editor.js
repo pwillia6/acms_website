@@ -617,6 +617,19 @@
         diffLink.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
         try {
+            // Fetch sitemap data to get page titles
+            let sitemapData = { html_pages: [], include_files: [] }; // Initialize with both keys
+            try {
+                const sitemapResponse = await fetch('/data/sitemap.json');
+                if (sitemapResponse.ok) {
+                    sitemapData = await sitemapResponse.json();
+                }
+            } catch (sitemapError) {
+                console.warn('Could not fetch sitemap.json for diff titles:', sitemapError);
+            }
+            const allPages = (sitemapData.html_pages || []).concat(sitemapData.include_files || []);
+            const titleMap = new Map(allPages.map(page => [page.path, page.title]));
+
             const response = await fetch('/webrobot.php?action=get_commit_diff', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -631,6 +644,7 @@
             // and apply syntax highlighting to the added/removed lines.
             const diffLines = result.diff.split('\n');
             let formattedHtml = '';
+            let isJsonFile = false; // Flag for JSON file, reset for each file in the diff
 
             const stripTags = (str) => {
                 const div = document.createElement('div');
@@ -645,16 +659,22 @@
                 // Show filename
                 if (line.startsWith('diff --git')) {
                     const parts = line.split(' ');
-                    const filename = parts[3] ? parts[3].substring(2) : 'unknown file'; // e.g., b/includes/footer.html -> includes/footer.html
-                    formattedHtml += `<span class="text-white font-bold">${filename}</span>\n`;
+                    const filename = parts[3] ? parts[3].substring(2) : 'unknown file';
+                    const displayTitle = titleMap.get(filename) || filename;
+                    isJsonFile = filename.endsWith('.json');
+                    formattedHtml += `<span class="text-white font-bold">${displayTitle}</span>\n`;
                     i++;
                     continue;
                 }
 
                 // Check for a modification pair (- line followed by + line) and perform a word-level diff
                 if (line.startsWith('-') && !line.startsWith('---') && (i + 1 < diffLines.length) && diffLines[i+1].startsWith('+') && !diffLines[i+1].startsWith('+++')) {
-                    const cleanMinus = stripTags(line.substring(1)).replace(/\t/g, ' ').replace(/ +/g, ' ');
-                    const cleanPlus = stripTags(diffLines[i+1].substring(1)).replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    let cleanMinus = stripTags(line.substring(1));
+                    let cleanPlus = stripTags(diffLines[i+1].substring(1));
+                    if (!isJsonFile) {
+                        cleanMinus = cleanMinus.replace(/\t/g, ' ').replace(/ +/g, ' ');
+                        cleanPlus = cleanPlus.replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    }
                     const wordDiff = diffWords(cleanMinus, cleanPlus);
 
                     let minusHtml = '', plusHtml = '';
@@ -674,11 +694,17 @@
                     formattedHtml += `<span class="text-green-400">+ ${plusHtml}</span>\n`;
                     i += 2; // Skip next line as it has been processed
                 } else if (line.startsWith('+') && !line.startsWith('+++')) {
-                    const cleanText = stripTags(line.substring(1)).replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    let cleanText = stripTags(line.substring(1));
+                    if (!isJsonFile) {
+                        cleanText = cleanText.replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    }
                     formattedHtml += `<span class="text-green-400">+ ${cleanText}</span>\n`;
                     i++;
                 } else if (line.startsWith('-') && !line.startsWith('---')) {
-                    const cleanText = stripTags(line.substring(1)).replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    let cleanText = stripTags(line.substring(1));
+                    if (!isJsonFile) {
+                        cleanText = cleanText.replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    }
                     formattedHtml += `<span class="text-red-400">- ${cleanText}</span>\n`;
                     i++;
                 } else {
