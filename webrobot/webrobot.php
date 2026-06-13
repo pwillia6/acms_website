@@ -464,21 +464,67 @@ class TextEditor {
         $fullPath = $this->updater->validate_path($filePath);
         $originalContent = file_get_contents($fullPath);
 
-        // Replace the content of the main tag. The 's' flag allows '.' to match newlines.
-        $newFullContent = preg_replace('/(<main[^>]*>)(.*?)(<\/main>)/s', '$1' . $newMainContent . '$3', $originalContent, 1, $count);
+        // --- New logic to handle included files wrapped in <includessi> ---
+        $dom = new DOMDocument();
+        // Use libxml to prevent errors on HTML5 tags and wrap content to ensure it's parsed correctly as a fragment.
+        // The @ suppresses warnings on potentially malformed user-edited HTML.
+        @$dom->loadHTML('<?xml encoding="utf-8" ?>' . $newMainContent, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+
+        $filesToCommit = [];
+        $includeNodes = $dom->getElementsByTagName('includessi');
+        
+        // Iterate backwards over the node list as we are removing/replacing nodes.
+        for ($i = $includeNodes->length - 1; $i >= 0; $i--) {
+            $node = $includeNodes->item($i);
+            $includePath = $node->getAttribute('data-path');
+
+            if ($includePath) {
+                // Get the innerHTML of the <includessi> node.
+                $innerContent = '';
+                foreach ($node->childNodes as $child) {
+                    $innerContent .= $dom->saveHTML($child);
+                }
+
+                // Save the extracted content to the included file.
+                $fullIncludePath = $this->updater->validate_path($includePath);
+                if (file_put_contents($fullIncludePath, $innerContent) === false) {
+                    throw new Exception("Failed to save included file: {$includePath}");
+                }
+                $filesToCommit[] = $includePath;
+
+                // Replace the <includessi> wrapper node with the original SSI directive comment.
+                $ssiComment = $dom->createComment("#include virtual=\"{$includePath}\" ");
+                $node->parentNode->replaceChild($ssiComment, $node);
+            }
+        }
+
+        // Reconstruct the cleaned main content from the DOM, now with SSI directives restored.
+        $cleanedMainContent = '';
+        // childNodes of the document object itself will contain the parsed fragment.
+        foreach ($dom->childNodes as $child) {
+            // Don't save the xml processing instruction we added.
+            if ($child->nodeType !== XML_PI_NODE) {
+                 $cleanedMainContent .= $dom->saveHTML($child);
+            }
+        }
+
+        // Now, update the main page's content by replacing only the content of the <main> tag.
+        $newFullContent = preg_replace('/(<main[^>]*>)(.*?)(<\/main>)/s', '$1' . $cleanedMainContent . '$3', $originalContent, 1, $count);
 
         if ($count === 0) {
             throw new Exception("Could not find <main> tag in the file to update.");
         }
 
         if (file_put_contents($fullPath, $newFullContent) === false) {
-            throw new Exception('Failed to save file via Text Editor.');
+            throw new Exception('Failed to save main file via Text Editor.');
         }
+        $filesToCommit[] = $filePath;
 
+        // Commit all changed files to Git.
         $gitService = $this->updater->getGitService();
-        if ($gitService) {
+        if ($gitService && !empty($filesToCommit)) {
             $prompt = !empty(trim($comment)) ? $comment : '[Text Editor Update]';
-            $gitService->commitChanges([$filePath], $prompt);
+            $gitService->commitChanges(array_unique($filesToCommit), $prompt);
         }
     }
 }
@@ -1027,25 +1073,40 @@ class WebRobotUpdater {
      * @throws Exception If the path is invalid or outside the document root.
      */
     public function validate_path($path) {
-        // realpath() will return false for non-existent paths. This normalizes a path to handle '..' etc.
-        // without requiring the file to exist, making it safer.
-        $path = str_replace('\\', '/', $path);
-        $parts = array_filter(explode('/', $path), 'strlen');
-        $absolutes = array();
-        foreach ($parts as $part) {
-            if ('.' == $part) continue;
-            if ('..' == $part) {
-                array_pop($absolutes);
-            } else {
-                $absolutes[] = $part;
-            }
+        // Prevent directory traversal attacks.
+        if (strpos($path, '..') !== false) {
+            throw new Exception('Invalid file path: directory traversal ("..") is not allowed.');
         }
-        $fullPath = DOC_ROOT . '/' . implode('/', $absolutes);
+        // Prevent null byte injection.
+        if (strpos($path, "\0") !== false) {
+            throw new Exception('Invalid file path: null byte detected.');
+        }
 
-        // Final check to ensure the path is within the document root.
-        if (strpos(realpath(dirname($fullPath)), realpath(DOC_ROOT)) !== 0) {
+        // Construct the full path, removing any leading slashes from the relative path.
+        $fullPath = DOC_ROOT . '/' . ltrim($path, '/\\');
+
+        // Get the canonical, absolute path of the document root.
+        $realDocRoot = realpath(DOC_ROOT);
+        if ($realDocRoot === false) {
+            // This would be a server configuration issue.
+            throw new Exception('Could not resolve the document root path. Check server configuration.');
+        }
+
+        // Get the canonical, absolute path of the directory containing the target file.
+        $realDir = realpath(dirname($fullPath));
+
+        // If the directory doesn't exist, realpath returns false. This is an error.
+        if ($realDir === false) {
+            throw new Exception("The directory for the path '{$path}' does not exist or is not accessible.");
+        }
+
+        // The main security check: ensure the target directory is inside the document root.
+        if (strpos($realDir, $realDocRoot) !== 0) {
             throw new Exception('Invalid or forbidden file path. Only files within the document root can be edited.');
         }
+
+        // Return the constructed full path. We don't return the realpath of the file itself,
+        // because the file might not exist yet (e.g., if it's being created).
         return $fullPath;
     }
 
