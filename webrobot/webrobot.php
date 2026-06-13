@@ -509,7 +509,11 @@ class TextEditor {
         }
 
         // Now, update the main page's content by replacing only the content of the <main> tag.
-        $newFullContent = preg_replace('/(<main[^>]*>)(.*?)(<\/main>)/s', '$1' . $cleanedMainContent . '$3', $originalContent, 1, $count);
+        // We must escape special characters in the user-provided content to prevent preg_replace from
+        // interpreting them as backreferences (e.g., '$100') or escape sequences.
+        // The special characters in a preg_replace replacement string are '$' and '\'.
+        $safeCleanedMainContent = str_replace(['\\', '$'], ['\\\\', '\\$'], $cleanedMainContent);
+        $newFullContent = preg_replace('/(<main[^>]*>)(.*?)(<\/main>)/s', '$1' . $safeCleanedMainContent . '$3', $originalContent, 1, $count);
 
         if ($count === 0) {
             throw new Exception("Could not find <main> tag in the file to update.");
