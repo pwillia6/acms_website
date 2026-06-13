@@ -1,8 +1,9 @@
 <?php
+// PHP Compatibility: 5.6+
 define('DOC_ROOT', __DIR__ . '/../pages');
 
 // Securely fetch the file Apache intended to serve
-$filePathRaw = $_SERVER['PATH_TRANSLATED'] ?? '';
+$filePathRaw = isset($_SERVER['PATH_TRANSLATED']) ? $_SERVER['PATH_TRANSLATED'] : '';
 
 if (!empty($filePathRaw) && file_exists($filePathRaw) && is_file($filePathRaw)) {
     // Use realpath to resolve any symlinks for a consistent path comparison.

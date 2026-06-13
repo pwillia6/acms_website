@@ -1,178 +1,11 @@
 <?php
-// --- Start of Merged config.php ---
+// PHP Compatibility: 5.6+
+
 // The root directory of the website you want to edit.
 define('DOC_ROOT', __DIR__ . '/../pages');
 // Define to true to simulate a patch command failure for testing purposes.
 // When true, apply_diff will always throw an exception.
 define('SIMULATE_PATCH_FAILURE', false);
-// --- End of Merged config.php ---
-
-
-/*-- "Curl example command" to process files with interactions API, Its output is a set of files in diff format
-#!/bin/bash
-
-# 1. Verify environment and arguments
-if [ -z "$GEMINI_KEY" ]; then
-    echo "Error: GEMINI_KEY environment variable is not set."
-    exit 1
-fi
-
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <html_file> <json_file>"
-    echo "Example: $0 index.html header.json"
-    exit 1
-fi
-
-HTML_FILE=$1
-JSON_FILE=$2
-
-# Check if files exist
-if [ ! -f "$HTML_FILE" ] || [ ! -f "$JSON_FILE" ]; then
-    echo "Error: One or both specified files do not exist."
-    exit 1
-fi
-
-# 2. Read the prompt from the keyboard
-echo "Enter your task/prompt for Gemini (Press Enter when done):"
-read -r USER_PROMPT
-
-if [ -z "$USER_PROMPT" ]; then
-    echo "Error: Prompt cannot be empty."
-    exit 1
-fi
-
-echo "Generating payload and calling the Interactions API..."
-
-# 3. Safely construct the JSON payload using jq
-# - Swapped model to gemini-3.5-flash for faster coding performance
-# - Updated system_instruction to request Unified Diffs
-# - Updated the JSON schema properties to expect "unified_diff"
-JSON_PAYLOAD=$(jq -n \
-  --arg html_content "$(cat "$HTML_FILE")" \
-  --arg html_name "$HTML_FILE" \
-  --arg json_content "$(cat "$JSON_FILE")" \
-  --arg json_name "$JSON_FILE" \
-  --arg prompt "$USER_PROMPT" \
-  '{
-    "model": "gemini-3.1-pro-preview",
-    "system_instruction": "You are an expert web developer. You will receive file contents and a task. Return the modifications as standard Unified Diffs for any changed files. Do not return the full file content.",
-    "input": [
-      {
-        "type": "text",
-        "text": ("--- FILE: " + $html_name + " ---\n" + $html_content)
-      },
-      {
-        "type": "text",
-        "text": ("--- FILE: " + $json_name + " ---\n" + $json_content)
-      },
-      {
-        "type": "text",
-        "text": ("--- TASK ---\n" + $prompt)
-      }
-    ],
-    "response_format": {
-      "type": "text",
-      "mime_type": "application/json",
-      "schema": {
-        "type": "object",
-        "properties": {
-          "modified_files": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "filename": { "type": "string" },
-                "unified_diff": { "type": "string" }
-              },
-              "required": ["filename", "unified_diff"]
-            }
-          }
-        },
-        "required": ["modified_files"]
-      }
-    }
-  }')
-
-# 4. Send to the Interactions API and parse the response
-curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/interactions?key=$GEMINI_KEY" \
--H "Content-Type: application/json" \
--d "$JSON_PAYLOAD" > response1.json
-
-INTERACTION_ID=$(jq -r '.id' response1.json)
-
-if [ -z "$INTERACTION_ID" ] || [ "$INTERACTION_ID" == "null" ]; then
-    echo "Error: Failed to get interaction ID from the first response."
-    cat response1.json
-    exit 1
-fi
-
-echo "First interaction complete. ID: $INTERACTION_ID"
-jq -r '.steps[-1].content[0].text' response1.json > content.json
-echo "Response content saved to content.json"
-
-# 5. Prompt for the second turn
-echo -e "\nEnter your follow-up task/prompt (Press Enter when done):"
-read -r USER_PROMPT_2
-
-if [ -z "$USER_PROMPT_2" ]; then
-    echo "No follow-up prompt provided. Exiting."
-    exit 0
-fi
-
-echo "Generating payload for the second call..."
-
-# 6. Construct the payload for the second call
-JSON_PAYLOAD_2=$(jq -n \
-  --arg prev_id "$INTERACTION_ID" \
-  --arg prompt "$USER_PROMPT_2" \
-  '{
-    "model": "gemini-3.1-pro-preview",
-    "previous_interaction_id": $prev_id,
-    "system_instruction": "You are an expert web developer. You will receive file contents and a task. Return the modifications as standard Unified Diffs for any changed files. Do not return the full file content.",
-    "input": [
-      {
-        "type": "text",
-        "text": ("--- TASK ---\n" + $prompt)
-      }
-    ],
-    "response_format": (.response_format | fromjson)
-  }' --argjson response_format "$(jq '.response_format' <<< "$JSON_PAYLOAD")")
-
-# 7. Send the second request to the Interactions API
-echo "Calling the Interactions API for the second time..."
-curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/interactions?key=$GEMINI_KEY" \
--H "Content-Type: application/json" \
--d "$JSON_PAYLOAD_2" | jq -r '.steps[-1].content[0].text' > content2.json
-
-echo "Second response content saved to content2.json"
-*/
-
-/* "Sample Execution" of the command
-
-user@Pauls-Mac-mini-2 learn_interactions % sh curl index.html header.json 
-Enter your task/prompt for Gemini (Press Enter when done):
-Modify the title of the page to header and add a newplaying day to the table for Twinkle - 3 June
-Generating payload and calling the Interactions API...
-
-*/
-
-/* "Command Output" of -d "$JSON_PAYLOAD" | jq -r '.steps[-1].content[0].text' > content.json from the script
-
-{
-  "modified_files": [
-    {
-      "filename": "index.html",
-      "unified_diff": "--- index.html\n+++ index.html\n@@ -3,3 +3,3 @@\n     <meta charset=\"UTF-8\">\n     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n-    <title>Home | Amateur Chamber Music Society (ACMS) Australia</title>\n+    <title>header</title>\n     <!-- Tailwind CSS -->\n"
-    },
-    {
-      "filename": "sample.json",
-      "unified_diff": "--- sample.json\n+++ sample.json\n@@ -34,6 +34,11 @@\n         \"status\": \"Completed\"\n     },\n     {\n+        \"type\": \"playing-day\",\n+        \"date\": \"3 June\",\n+        \"title\": \"Twinkle\"\n+    },\n+    {\n         \"type\": \"concert\",\n         \"date\": \"14 June 2026\",\n"
-    }
-  ]
-}
-
-*/
-
 
 /**
  * Handles all interactions with the Google Gemini API.
@@ -343,7 +176,7 @@ class GeminiService {
             }
 
             $result = json_decode($apiResponse, true);
-            $newInteractionId = $result['id'] ?? null;
+            $newInteractionId = isset($result['id']) ? $result['id'] : null;
 
             $modified_files_json = null;
             if (isset($result['steps']) && is_array($result['steps'])) {
@@ -362,11 +195,11 @@ class GeminiService {
                     throw new Exception("Failed to decode or invalid diff JSON from API: " . $modified_files_json);
                 }
 
-                $usage = $result['usage'] ?? [];
+                $usage = isset($result['usage']) ? $result['usage'] : [];
                 $final_usage = [
-                    'promptTokenCount' => $usage['total_input_tokens'] ?? 0,
-                    'candidatesTokenCount' => $usage['total_output_tokens'] ?? 0,
-                    'totalTokens' => $usage['total_tokens'] ?? 0
+                    'promptTokenCount' => isset($usage['total_input_tokens']) ? $usage['total_input_tokens'] : 0,
+                    'candidatesTokenCount' => isset($usage['total_output_tokens']) ? $usage['total_output_tokens'] : 0,
+                    'totalTokens' => isset($usage['total_tokens']) ? $usage['total_tokens'] : 0
                 ];
 
                 $logData['processed'] = [
@@ -1003,7 +836,9 @@ class WebRobotUpdater {
         $metadata = $this->listUploads();
         $key = ($type === 'image') ? 'images' : 'documents';
 
-        $metadata[$key] = array_values(array_filter($metadata[$key], fn($item) => $item['filename'] !== $filename));
+        $metadata[$key] = array_values(array_filter($metadata[$key], function($item) use ($filename) {
+            return $item['filename'] !== $filename;
+        }));
 
         file_put_contents($metadataPath, json_encode($metadata, JSON_PRETTY_PRINT));
     }
