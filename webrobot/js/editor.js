@@ -551,6 +551,50 @@
         }
     }
 
+    /**
+     * Compares two strings and returns an array of objects representing the word-level differences.
+     * This is a basic implementation based on the Longest Common Subsequence algorithm.
+     * @param {string} oldText The original string.
+     * @param {string} newText The new string.
+     * @returns {Array<{value: string, added?: boolean, removed?: boolean}>}
+     */
+    function diffWords(oldText, newText) {
+        const oldWords = oldText.split(/(\s+)/).filter(Boolean);
+        const newWords = newText.split(/(\s+)/).filter(Boolean);
+
+        const dp = [];
+        for (let i = 0; i <= oldWords.length; i++) {
+            dp[i] = new Array(newWords.length + 1).fill(0);
+        }
+
+        for (let i = 1; i <= oldWords.length; i++) {
+            for (let j = 1; j <= newWords.length; j++) {
+                if (oldWords[i - 1] === newWords[j - 1]) {
+                    dp[i][j] = dp[i - 1][j - 1] + 1;
+                } else {
+                    dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                }
+            }
+        }
+
+        const result = [];
+        let i = oldWords.length;
+        let j = newWords.length;
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && oldWords[i - 1] === newWords[j - 1]) {
+                result.unshift({ value: oldWords[i - 1] });
+                i--; j--;
+            } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+                result.unshift({ value: newWords[j - 1], added: true });
+                j--;
+            } else if (i > 0) {
+                result.unshift({ value: oldWords[i - 1], removed: true });
+                i--;
+            } else { break; }
+        }
+        return result;
+    }
+
     async function handleShowDiff(e) {
         const diffLink = e.target.closest('.diff-link');
         if (!diffLink) return;
@@ -588,21 +632,60 @@
             const diffLines = result.diff.split('\n');
             let formattedHtml = '';
 
-            diffLines.forEach(line => {
-                const escapedLine = document.createElement('div');
-                escapedLine.textContent = line;
+            const stripTags = (str) => {
+                const div = document.createElement('div');
+                div.innerHTML = str;
+                return div.textContent || div.innerText || '';
+            };
 
+            let i = 0;
+            while (i < diffLines.length) {
+                const line = diffLines[i];
+
+                // Show filename
                 if (line.startsWith('diff --git')) {
                     const parts = line.split(' ');
                     const filename = parts[3] ? parts[3].substring(2) : 'unknown file'; // e.g., b/includes/footer.html -> includes/footer.html
                     formattedHtml += `<span class="text-white font-bold">${filename}</span>\n`;
-                } else if (line.startsWith('+') && !line.startsWith('+++')) {
-                    formattedHtml += `<span class="text-green-400">${escapedLine.innerHTML}</span>\n`;
-                } else if (line.startsWith('-') && !line.startsWith('---')) {
-                    formattedHtml += `<span class="text-red-400">${escapedLine.innerHTML}</span>\n`;
+                    i++;
+                    continue;
                 }
-                // All other lines (---, +++, @@, index, context) are ignored.
-            });
+
+                // Check for a modification pair (- line followed by + line) and perform a word-level diff
+                if (line.startsWith('-') && !line.startsWith('---') && (i + 1 < diffLines.length) && diffLines[i+1].startsWith('+') && !diffLines[i+1].startsWith('+++')) {
+                    const cleanMinus = stripTags(line.substring(1)).replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    const cleanPlus = stripTags(diffLines[i+1].substring(1)).replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    const wordDiff = diffWords(cleanMinus, cleanPlus);
+
+                    let minusHtml = '', plusHtml = '';
+                    wordDiff.forEach(part => {
+                        const escapedValue = document.createElement('div');
+                        escapedValue.textContent = part.value;
+                        if (part.added) {
+                            plusHtml += `<span class="bg-green-800/50 text-green-200">${escapedValue.innerHTML}</span>`;
+                        } else if (part.removed) {
+                            minusHtml += `<span class="bg-red-800/50 text-red-200">${escapedValue.innerHTML}</span>`;
+                        } else {
+                            minusHtml += escapedValue.innerHTML;
+                            plusHtml += escapedValue.innerHTML;
+                        }
+                    });
+                    formattedHtml += `<span class="text-red-400">- ${minusHtml}</span>\n`;
+                    formattedHtml += `<span class="text-green-400">+ ${plusHtml}</span>\n`;
+                    i += 2; // Skip next line as it has been processed
+                } else if (line.startsWith('+') && !line.startsWith('+++')) {
+                    const cleanText = stripTags(line.substring(1)).replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    formattedHtml += `<span class="text-green-400">+ ${cleanText}</span>\n`;
+                    i++;
+                } else if (line.startsWith('-') && !line.startsWith('---')) {
+                    const cleanText = stripTags(line.substring(1)).replace(/\t/g, ' ').replace(/ +/g, ' ');
+                    formattedHtml += `<span class="text-red-400">- ${cleanText}</span>\n`;
+                    i++;
+                } else {
+                    // Ignore all other lines (---, +++, @@, index, context, etc.)
+                    i++;
+                }
+            }
 
             preElement.innerHTML = formattedHtml;
             diffContainer.classList.remove('hidden');
