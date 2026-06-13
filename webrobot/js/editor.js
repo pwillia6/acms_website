@@ -25,6 +25,7 @@
 
     // --- Editor UI ---
     const editorHTML = `
+        <style> #ai-editor-spinner.hidden, #upload-spinner.hidden { display: none !important; } </style>
         <div id="ai-editor-bar" class="fixed top-0 left-0 right-0 bg-stone-900 text-white p-3 shadow-lg z-[100] flex items-start gap-4 text-sm transition-transform duration-300 -translate-y-full">
             
             <!-- Editor Mode Toggle -->
@@ -88,7 +89,7 @@
             <button id="ai-editor-close" class="text-stone-500 hover:text-white pt-2" title="Close Editor">
                 <i class="fa-solid fa-times"></i>
             </button>
-        </button>
+        </div>
         <div id="ai-editor-history-modal" class="fixed inset-0 bg-black/60 z-[101] hidden items-center justify-center p-4">
             <div class="bg-stone-800 rounded-lg shadow-2xl w-full max-w-lg">
                 <div class="p-4 border-b border-stone-700 flex justify-between items-center">
