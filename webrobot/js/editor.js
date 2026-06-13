@@ -476,11 +476,15 @@
                         <div class="flex justify-between items-center text-xs">
                             <div>
                                 <span class="font-mono text-stone-300">${backup.file.substring(0, 7)}</span>
+                                <a href="#" class="diff-link text-brandTeal-400 hover:underline ml-2" data-commit="${backup.file}">changes</a>
                                 <span class="text-stone-400 ml-2">${backup.date}</span>
                             </div>
                             ${rollbackButtonHtml}
                         </div>
                         ${promptHtml}
+                        <div class="diff-container hidden mt-2 p-2 bg-black/50 rounded-md max-h-60 overflow-y-auto custom-scrollbar">
+                            <pre class="text-xs text-white whitespace-pre-wrap font-mono"></pre>
+                        </div>
                     </div>`;
                 }).join('');
             } else {
@@ -544,6 +548,72 @@
         if (modal) {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+        }
+    }
+
+    async function handleShowDiff(e) {
+        const diffLink = e.target.closest('.diff-link');
+        if (!diffLink) return;
+
+        e.preventDefault();
+
+        const commitHash = diffLink.dataset.commit;
+        const historyItem = diffLink.closest('.p-2.rounded-md');
+        const diffContainer = historyItem.querySelector('.diff-container');
+        const preElement = diffContainer.querySelector('pre');
+
+        if (!commitHash || !diffContainer || !preElement) return;
+
+        // Toggle visibility if already loaded
+        if (diffContainer.dataset.loaded === 'true') {
+            diffContainer.classList.toggle('hidden');
+            return;
+        }
+
+        diffLink.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+        try {
+            const response = await fetch('/webrobot.php?action=get_commit_diff', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ commit: commitHash })
+            });
+
+            if (!response.ok) throw new Error((await response.json()).error || 'Failed to fetch diff.');
+
+            const result = await response.json();
+            
+            // To simplify the view, filter out the context lines (those starting with a space)
+            // and apply syntax highlighting to the added/removed lines.
+            const diffLines = result.diff.split('\n');
+            let formattedHtml = '';
+
+            diffLines.forEach(line => {
+                const escapedLine = document.createElement('div');
+                escapedLine.textContent = line;
+
+                if (line.startsWith('diff --git')) {
+                    const parts = line.split(' ');
+                    const filename = parts[3] ? parts[3].substring(2) : 'unknown file'; // e.g., b/includes/footer.html -> includes/footer.html
+                    formattedHtml += `<span class="text-white font-bold">${filename}</span>\n`;
+                } else if (line.startsWith('+') && !line.startsWith('+++')) {
+                    formattedHtml += `<span class="text-green-400">${escapedLine.innerHTML}</span>\n`;
+                } else if (line.startsWith('-') && !line.startsWith('---')) {
+                    formattedHtml += `<span class="text-red-400">${escapedLine.innerHTML}</span>\n`;
+                }
+                // All other lines (---, +++, @@, index, context) are ignored.
+            });
+
+            preElement.innerHTML = formattedHtml;
+            diffContainer.classList.remove('hidden');
+            diffContainer.dataset.loaded = 'true';
+
+        } catch (error) {
+            console.error('Diff Error:', error);
+            preElement.textContent = `Error loading diff: ${error.message}`;
+            diffContainer.classList.remove('hidden');
+        } finally {
+            diffLink.innerHTML = 'changes';
         }
     }
 
@@ -851,6 +921,7 @@
             }
         });
         document.getElementById('ai-editor-history-list')?.addEventListener('click', handleRollback);
+        document.getElementById('ai-editor-history-list')?.addEventListener('click', handleShowDiff);
 
         // Scope listeners
         document.getElementById('ai-editor-scope')?.addEventListener('click', showScopeModal);

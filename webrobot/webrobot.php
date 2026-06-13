@@ -698,6 +698,19 @@ class GitService {
     public function rollbackRepository($commitHash) {
         $this->execute('git reset --hard ' . escapeshellarg($commitHash));
     }
+
+    /**
+     * Gets the diff for a specific commit.
+     * @param string $commitHash The commit hash.
+     * @return string The diff output.
+     */
+    public function getCommitDiff($commitHash) {
+        // Use --pretty="" to only show the diff part of the commit, not the metadata.
+        // This makes the output cleaner for the user.
+        $command = 'git show --pretty="" ' . escapeshellarg($commitHash);
+        $output = $this->execute($command);
+        return implode("\n", $output);
+    }
 }
 
 /**
@@ -1356,6 +1369,18 @@ try {
             $commitHash = isset($data['commit']) ? $data['commit'] : '';
             $updater->rollbackRepository($commitHash);
             $response['message'] = 'Repository rolled back successfully to specified version.';
+            break;
+        case 'get_commit_diff':
+            $data = json_decode(file_get_contents('php://input'), true);
+            $commitHash = isset($data['commit']) ? $data['commit'] : '';
+            if (empty($commitHash)) {
+                throw new Exception('Commit hash is required.');
+            }
+            $gitService = $updater->getGitService();
+            if (!$gitService) {
+                throw new Exception('Git service is not available.');
+            }
+            $response['diff'] = $gitService->getCommitDiff($commitHash);
             break;
         default:
             http_response_code(400);
