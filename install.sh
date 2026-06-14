@@ -37,7 +37,7 @@ declare -A VAR_VALUES
 function get_prompt_text() {
     case "$1" in
         DOMAIN) echo "Domain Name (e.g., acms.cweb.com.au)" ;;
-        BASE_PATH) echo "Absolute base path for website files (e.g., /home/www)" ;;
+        BASE_PATH) echo "Absolute base path for website files (e.g., /home/www/acms.cweb.com.au)" ;;
         HTPASSWD_PATH) echo "Absolute path to .htpasswd file (e.g., /home/ec2-user/etc/htpasswd)" ;;
         GEMINI_API_KEY) echo "Google Gemini API Key" ;;
         GEMINI_MODEL) echo "Gemini Model to use (e.g., gemini-1.5-flash-latest)" ;;
@@ -68,19 +68,9 @@ for TPL_FILE in $TEMPLATE_FILES; do
             VALUE=""
             if [[ "$OUTPUT_FILE" == *.conf ]]; then
                 # Handle Apache .conf files
-                case "$CLEAN_VAR_NAME" in
-                    BASE_PATH)
-                        # Special handling for BASE_PATH which is part of BASE_DIR
-                        LINE=$(grep "^Define BASE_DIR" "$OUTPUT_FILE" || true)
-                        # Extracts from "Define BASE_DIR /path/to/base/${DOMAIN}"
-                        VALUE=$(echo "$LINE" | sed -n 's#Define BASE_DIR \([^ ]*\)/${DOMAIN}#\1#p')
-                        ;;
-                    *)
-                        # Generic handling for other 'Define' variables
-                        LINE=$(grep "^Define ${CLEAN_VAR_NAME}" "$OUTPUT_FILE" || true)
-                        VALUE=$(echo "$LINE" | awk '{print $3}')
-                        ;;
-                esac
+                # Generic handling for 'Define' variables. This now works for BASE_PATH as well.
+                LINE=$(grep "^Define ${CLEAN_VAR_NAME}" "$OUTPUT_FILE" || true)
+                VALUE=$(echo "$LINE" | awk '{print $3}')
             elif [[ "$OUTPUT_FILE" == *.json ]]; then
                 # Handle .json files by mapping variable name to JSON key
                 JSON_KEY=""
