@@ -926,7 +926,7 @@
         e.preventDefault();
 
         const commitHash = diffLink.dataset.commit;
-        const historyItem = diffLink.closest('.p-2.rounded-md');
+        const historyItem = diffLink.closest('.history-item');
         const diffContainer = historyItem.querySelector('.diff-container');
         const preElement = diffContainer.querySelector('pre');
 
